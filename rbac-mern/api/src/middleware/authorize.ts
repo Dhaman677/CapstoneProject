@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { recordAuthDenial } from "./metrics";
 
 function hasPermission(req: Request, perm: string): boolean {
   return !!req.user?.perms.includes(perm);
@@ -18,7 +19,8 @@ export function can(permission: string) {
       if (!req.resourceOwnerId) return res.status(403).json({ error: "Forbidden" });
       if (req.resourceOwnerId.toString() === req.user.id.toString()) return next();
     }
-
+    
+    recordAuthDenial(req);
     return res.status(403).json({ error: "Forbidden" });
   };
 }

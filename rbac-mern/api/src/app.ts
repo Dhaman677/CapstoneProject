@@ -7,6 +7,7 @@ import postRoutes from "./modules/posts/post.routes";
 import userAdminRoutes from "./modules/users/user.routes";
 import { httpLogger, correlationIdMiddleware } from "./utils/logger";
 import rateLimit from "express-rate-limit";
+import { getMetrics } from "./middleware/metrics";
 
 const app = express();
 
@@ -41,5 +42,9 @@ app.use("/admin/users", userAdminRoutes);
 
 app.use("/auth", authLimiter);// apply stricter limit to auth endpoints
 app.use(generalLimiter); // general API limit
+
+app.get("/metrics", (_req, res) => {
+  res.json(getMetrics());
+});
 
 export default app;
