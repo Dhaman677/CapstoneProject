@@ -1,51 +1,58 @@
 import { Router } from "express";
+import { validate } from "../middleware/validate";
+import { registerSchema, loginSchema } from "../validation/auth.validation";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { UserModel } from "../models/user.model";
-import { signAccessToken, signRefreshToken, verifyRefreshToken, REFRESH_COOKIE_NAME } from "./jwt";
 
 const router = Router();
 
-const isProd = process.env.NODE_ENV === "production";
-
-router.post("/login", async (req, res) => {
-  const { email, password } = req.body ?? {};
-  if (!email || !password) return res.status(400).json({ error: "Missing credentials" });
-
-  const user = await UserModel.findOne({ email });
-  if (!user || !(await user.comparePassword(password))) {
-    return res.status(401).json({ error: "Invalid email or password" });
-  }
-
-  const accessToken = signAccessToken(user.id, user.role);
-  const refreshToken = signRefreshToken(user.id, user.role);
-
-  res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: isProd,
-    maxAge: 1000 * 60 * 60 * 24 * (parseInt(process.env.REFRESH_TTL_DAYS || "7", 10)),
-    path: "/auth",
-  });
-
-  return res.json({ accessToken });
-});
-
-router.post("/refresh", async (req, res) => {
-  const token = req.cookies?.[REFRESH_COOKIE_NAME];
-  if (!token) return res.status(401).json({ error: "No refresh token" });
+/**
+ * @route POST /auth/register
+ * @desc Register a new user (Admin, Editor, or Viewer)
+ */
+router.post("/register", validate(registerSchema), async (req, res) => {
+  const { email, password, role } = req.body;
 
   try {
-    const payload = verifyRefreshToken(token);
-    const accessToken = signAccessToken(payload.sub, payload.role);
-    return res.json({ accessToken });
-  } catch {
-    return res.status(401).json({ error: "Invalid refresh token" });
+    const existing = await UserModel.findOne({ email });
+    if (existing) return res.status(400).json({ error: "User already exists" });
+
+    const hashed = await bcrypt.hash(password, 10);
+    const user = await UserModel.create({ email, password: hashed, role: role || "Viewer" });
+
+    res.status(201).json({ id: user._id, email: user.email, role: user.role });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
-router.post("/logout", (req, res) => {
-  res.clearCookie(REFRESH_COOKIE_NAME, { path: "/auth" });
-  res.status(204).end();
+/**
+ * @route POST /auth/login
+ * @desc Login user and return JWT token
+ */
+router.post("/login", validate(loginSchema), async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const user = await UserModel.findOne({ email });
+    if (!user) return res.status(401).json({ error: "Invalid credentials" });
+
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) return res.status(401).json({ error: "Invalid credentials" });
+
+    const token = jwt.sign(
+      { sub: user._id, role: user.role },
+      process.env.JWT_SECRET!,
+      { expiresIn: "15m" }
+    );
+
+    res.json({ accessToken: token });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 export default router;

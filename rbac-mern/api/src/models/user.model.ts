@@ -5,6 +5,7 @@ import { RoleValue } from "../config/roles";
 export interface IUser extends Document {
   email: string;
   passwordHash: string;
+  password: string; 
   role: RoleValue;
   comparePassword: (plain: string) => Promise<boolean>;
 }
