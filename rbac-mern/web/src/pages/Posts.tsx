@@ -64,6 +64,10 @@ export default function Posts() {
             Logged in as <b>{user?.role}</b> (id: {user?.id})
           </div>
         </div>
+        {can("users:manage") && (
+         <a href="/admin" style={{ marginRight: 12 }}>Admin</a>
+        )}
+
         <button onClick={logout}>Logout</button>
       </header>
 

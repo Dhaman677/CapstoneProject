@@ -4,13 +4,16 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./auth/auth.routes";
 import postRoutes from "./modules/posts/post.routes";
 import { httpLogger, correlationIdMiddleware } from "./utils/logger";
+import userAdminRoutes from "./modules/users/user.routes";
 
 const app = express();
 
+app.use("/admin/users", userAdminRoutes);
 app.use(correlationIdMiddleware);
 app.use(httpLogger);
 app.use(express.json());
 app.use(cookieParser());
+app.use("/admin/users", userAdminRoutes);
 
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5173";
 app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
