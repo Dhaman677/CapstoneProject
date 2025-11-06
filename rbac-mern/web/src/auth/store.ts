@@ -1,9 +1,8 @@
+// web/src/auth/store.ts
 import { atom } from "jotai";
 
-export type UserClaims = {
-  id: string;
-  role: "Admin" | "Editor" | "Viewer";
-  perms: string[];
-} | null;
+export type Role = "Admin" | "Editor" | "Viewer";
+export type UserState = { id: string; role: Role; perms?: string[] } | null;
 
-export const userAtom = atom<UserClaims>(null);
+// ✅ Writable atom (not derived)
+export const userAtom = atom<UserState>(null);

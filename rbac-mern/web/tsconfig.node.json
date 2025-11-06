@@ -1,11 +1,11 @@
 {
   "compilerOptions": {
-    "composite": true,         // ✅ required for project reference
-    "module": "ESNext",
-    "moduleResolution": "Node",
+    "composite": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "allowSyntheticDefaultImports": true,
     "strict": true,
-    "noEmit": false,           // ✅ must not disable emit
+    "noEmit": false,
     "types": ["node"]
   },
   "include": ["vite.config.ts"]
