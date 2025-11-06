@@ -12,16 +12,17 @@ export default function Admin() {
 
   useEffect(() => {
     if (!can("users:manage")) return;
-    api.get<UserRow[]>("/admin/users")
-      .then(r => setUsers(r.data))
-      .catch(e => setMsg(e?.response?.data?.error || "Failed to load users"));
+    api
+      .get<UserRow[]>("/admin/users")
+      .then((r) => setUsers(r.data))
+      .catch((e) => setMsg(e?.response?.data?.error || "Failed to load users"));
   }, [can]);
 
   const updateRole = async (id: string, role: Role) => {
     setMsg("");
     try {
       const { data } = await api.patch<UserRow>(`/admin/users/${id}/role`, { role });
-      setUsers(prev => prev.map(u => (u.id === id ? data : u)));
+      setUsers((prev) => prev.map((u) => (u.id === id ? data : u)));
       setMsg("Role updated");
     } catch (e: any) {
       setMsg(e?.response?.data?.error || "Update failed");
@@ -43,15 +44,12 @@ export default function Admin() {
           </tr>
         </thead>
         <tbody>
-          {users.map(u => (
+          {users.map((u) => (
             <tr key={u.id}>
               <td style={{ padding: "6px 0" }}>{u.email}</td>
               <td>{u.role}</td>
               <td>
-                <select
-                  value={u.role}
-                  onChange={e => updateRole(u.id, e.target.value as Role)}
-                >
+                <select value={u.role} onChange={(e) => updateRole(u.id, e.target.value as Role)}>
                   <option value="Admin">Admin</option>
                   <option value="Editor">Editor</option>
                   <option value="Viewer">Viewer</option>

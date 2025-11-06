@@ -15,35 +15,32 @@ router.get("/", authenticate, can("users:manage"), async (_req, res) => {
 });
 
 router.patch("/:id/role", authenticate, can("users:manage"), async (req, res) => {
-  console.log("PATCH /admin/users/:id/role body:", req.body);  // 👈 add this temporarily
-  const { role } = req.body ?? {};
+  console.log("PATCH /admin/users/:id/role body:", req.body);
+  const { id } = req.params;
+  const { role } = req.body as { role: "Admin" | "Editor" | "Viewer" };
 
-
-  if (!role || !Object.values(Role).includes(role)) {
-    return res.status(400).json({ error: "Invalid role" });
-  }
-
-  const targetUser = await UserModel.findById(req.params.id);
+  const targetUser = await UserModel.findById(id);
   if (!targetUser) return res.status(404).json({ error: "User not found" });
 
-  // Only log if the role actually changed
-  if (targetUser.role !== role) {
-    // update role
+  // ✅ capture BEFORE changing
+  const oldRole = targetUser.role;
+
+  if (oldRole !== role) {
     targetUser.role = role;
     await targetUser.save();
 
-    // ✅ Log the change
     await AuditModel.create({
-      actorId: req.user!.id,           // the admin performing the change
-      targetUserId: targetUser._id,    // the user whose role changed
-      oldRole: targetUser.role,        // careful: we must log old role before updating
+      actorId: req.user!.id,
+      targetUserId: targetUser._id,
+      oldRole,            // ✅ correct old value
       newRole: role,
       timestamp: new Date(),
     });
   }
 
-  res.json({ id: targetUser._id, email: targetUser.email, role: targetUser.role });
+  return res.json({ id: targetUser._id, email: targetUser.email, role: targetUser.role });
 });
+
 
 // View audit logs (Admin only)
 router.get("/audits", authenticate, can("users:manage"), async (_req, res) => {

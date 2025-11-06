@@ -1,55 +1,26 @@
-import { Router } from "express";
+import express from "express";
 import { PostModel } from "../../models/post.model";
 import { authenticate } from "../../middleware/authenticate";
-import { can } from "../../middleware/authorize";
-import mongoose from "mongoose";
+import { can } from "../../middleware/authorize";  // replaces missing "can"
+import { validate } from "../../middleware/validate"; // if you have it
 
-const router = Router();
+const router = express.Router();
 
-// GET /posts  (anyone with posts:read)
-router.get("/", authenticate, can("posts:read"), async (req, res) => {
-  // Readers can see all posts in this demo. If you want Editors to only see their own, add a filter here.
-  const posts = await PostModel.find().sort({ createdAt: -1 }).limit(100);
-  res.json(posts);
-});
+// ✅ Delete post
+router.delete("/:id", authenticate, can("posts:delete"), async (req, res) => {
+  const { id } = req.params;
 
-// POST /posts (create = set authorId to current user)
-router.post("/", authenticate, can("posts:create"), async (req, res) => {
-  const { title, body } = req.body ?? {};
-  if (!title || !body) return res.status(400).json({ error: "title and body are required" });
-  const post = await PostModel.create({
-    title,
-    body,
-    authorId: new mongoose.Types.ObjectId(req.user!.id),
-  });
-  res.status(201).json(post);
-});
+  // Find post first
+  const post = await PostModel.findById(id);
+  if (!post) return res.status(404).json({ error: "Post not found" });
 
-// PUT /posts/:id  (Admin can update any; Editor only own)
-router.put("/:id", authenticate, async (req, res, next) => {
-  const post = await PostModel.findById(req.params.id);
-  if (!post) return res.status(404).json({ error: "Not found" });
-  req.resourceOwnerId = post.authorId.toString();
-  next();
-}, can("posts:update"), async (req, res) => {
-  const { title, body } = req.body ?? {};
-  const updated = await PostModel.findOneAndUpdate(
-    { _id: req.params.id },
-    { $set: { ...(title && { title }), ...(body && { body }) } },
-    { new: true }
-  );
-  res.json(updated);
-});
+  // Ownership check for editors
+  if (req.user?.role === "Editor" && post.authorId.toString() !== req.user.id.toString()) {
+    return res.status(403).json({ error: "Forbidden — not your post" });
+  }
 
-// DELETE /posts/:id  (Admin any; Editor own)
-router.delete("/:id", authenticate, async (req, res, next) => {
-  const post = await PostModel.findById(req.params.id);
-  if (!post) return res.status(404).json({ error: "Not found" });
-  req.resourceOwnerId = post.authorId.toString();
-  next();
-}, can("posts:delete"), async (req, res) => {
-  await PostModel.deleteOne({ _id: req.params.id });
-  res.status(204).end();
+  await PostModel.findByIdAndDelete(id);
+  return res.json({ message: "Post deleted successfully" });
 });
 
 export default router;
