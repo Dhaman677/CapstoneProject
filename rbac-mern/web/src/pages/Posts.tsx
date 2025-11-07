@@ -2,137 +2,87 @@ import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../auth/useAuth";
 
-type Post = {
-  id: string;
-  title: string;
-  body: string;
-  authorId: string;
-};
-
-export default function Posts() {
-  const { user, can, logout } = useAuth();
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [msg, setMsg] = useState("");
-  const [msgType, setMsgType] = useState<"success" | "error">("success");
-
-  // New post form state
+export default function PostsPage() {
+  const { user, can } = useAuth();
+  const [posts, setPosts] = useState<any[]>([]);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [msg, setMsg] = useState("");
 
+  // Load existing posts
   useEffect(() => {
-    loadPosts();
+    api.get("/posts")
+      .then((res) => setPosts(res.data))
+      .catch(() => setMsg("Failed to load posts"));
   }, []);
 
-  const loadPosts = async () => {
-    try {
-      const { data } = await api.get<Post[]>("/posts");
-      setPosts(data);
-    } catch (e: any) {
-      setMsg("Failed to load posts");
-      setMsgType("error");
-    }
-  };
-
-  const deletePost = async (id: string) => {
-    try {
-      await api.delete(`/posts/${id}`);
-      setPosts(prev => prev.filter(p => p.id !== id));
-      setMsg("Post deleted successfully");
-      setMsgType("success");
-    } catch (e: any) {
-      setMsg("Failed to delete post");
-      setMsgType("error");
-    }
-  };
-
+  // Create new post
   const createPost = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !body) return;
-
+    setMsg("");
     try {
-      const { data } = await api.post<Post>("/posts", { title, body });
-      setPosts(prev => [data, ...prev]);
+      const { data } = await api.post("/posts", { title, body });
+      setPosts((prev) => [data, ...prev]);
       setTitle("");
       setBody("");
-      setMsg("Post created successfully");
-      setMsgType("success");
-    } catch (e: any) {
-      setMsg("Failed to create post");
-      setMsgType("error");
+      setMsg("✅ Post created successfully!");
+    } catch (err: any) {
+      setMsg(err?.response?.data?.error || "❌ Failed to create post");
     }
   };
 
   return (
-    <div className="container">
-      <header>
+    <div style={{ maxWidth: 760, margin: "30px auto", fontFamily: "sans-serif" }}>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <h2>Posts</h2>
           <div style={{ fontSize: 12, opacity: 0.7 }}>
-            Logged in as <b>{user?.role}</b> (id: {user?.id})
+            Logged in as <b>{user?.role}</b>
           </div>
-        </div>
-
-        <div>
-          {can("users:manage") && <a href="/admin">Admin</a>}
-          <button onClick={logout}>Logout</button>
         </div>
       </header>
 
-      {msg && <div className={`message ${msgType}`}>{msg}</div>}
-
-      {/* ✅ Create Post Form — visible only to Editors or Admins */}
-      {(can("posts:create") || can("users:manage")) && (
-        <form onSubmit={createPost} style={{ marginBottom: "1.5rem" }}>
+      {/* Show create form only if user has posts:create */}
+      {can("posts:create") && (
+        <form onSubmit={createPost} style={{ margin: "12px 0", display: "grid", gap: 8 }}>
           <input
-            type="text"
-            placeholder="Post title"
+            placeholder="Post Title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
           />
           <textarea
-            placeholder="Post content"
+            placeholder="Post Body"
             value={body}
             onChange={(e) => setBody(e.target.value)}
             required
-            rows={3}
-            style={{
-              width: "100%",
-              padding: "0.6rem",
-              borderRadius: "8px",
-              border: "1px solid #ccc",
-              marginTop: "0.5rem",
-              fontFamily: "inherit",
-            }}
+            rows={4}
           />
-          <button type="submit" style={{ marginTop: "0.5rem" }}>
-            Add Post
+          <button type="submit" disabled={!title || !body}>
+            Create Post
           </button>
         </form>
       )}
 
-      <table>
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Body</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {posts.map(p => (
-            <tr key={p.id}>
-              <td>{p.title}</td>
-              <td>{p.body}</td>
-              <td>
-                {can("posts:delete") && (
-                  <button onClick={() => deletePost(p.id)}>Delete</button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {msg && <div style={{ color: msg.startsWith("✅") ? "green" : "red", marginBottom: 8 }}>{msg}</div>}
+
+      <ul style={{ listStyle: "none", padding: 0 }}>
+        {posts.map((p) => (
+          <li
+            key={p._id || p.id}
+            style={{
+              border: "1px solid #ddd",
+              padding: 10,
+              margin: "8px 0",
+              borderRadius: 4,
+            }}
+          >
+            <h3>{p.title}</h3>
+            <p>{p.body}</p>
+            <small>Author: {p.authorId}</small>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

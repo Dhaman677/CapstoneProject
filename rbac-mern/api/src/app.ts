@@ -18,8 +18,9 @@ app.use(express.json()); // parse JSON body BEFORE routes
 app.use(cookieParser());
 
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5173";
-app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
-
+app.use(cors({ origin: process.env.CORS_ORIGIN || "http://localhost:5173", credentials: true }));
+app.use(express.json());
+app.use(cookieParser());
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   limit: 10, // max 10 requests per IP per window
